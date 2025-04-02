@@ -17,22 +17,34 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 	} | null>(null);
 	const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
 
-	const margin = { top: 20, right: 30, bottom: 60, left: 60 }; // Increased bottom margin for labels
+	const margin = { top: 30, right: 50, bottom: 70, left: 60 }; // Adjusted for labels/title
 	const width = 800 - margin.left - margin.right;
 	const height = 400 - margin.top - margin.bottom;
 
 	useEffect(() => {
 		if (!ref.current || data.length === 0) return;
 
-		const svg = d3
-			.select(ref.current)
-			.attr('width', width + margin.left + margin.right)
+		// Use current theme for text colors
+		const isDarkMode =
+			window.matchMedia &&
+			window.matchMedia('(prefers-color-scheme: dark)').matches;
+		const axisTextColor = isDarkMode ? '#cbd5e1' : '#4b5563'; // slate-300 : gray-600
+		const gridColor = isDarkMode ? '#374151' : '#e5e7eb'; // gray-700 : gray-200
+
+		const svgRoot = d3.select(ref.current);
+		svgRoot.selectAll('*').remove(); // Clear previous render
+
+		const svg = svgRoot
+			.attr('width', '100%') // Responsive width
 			.attr('height', height + margin.top + margin.bottom)
+			.attr(
+				'viewBox',
+				`0 0 ${width + margin.left + margin.right} ${
+					height + margin.top + margin.bottom
+				}`,
+			)
 			.append('g')
 			.attr('transform', `translate(${margin.left},${margin.top})`);
-
-		// Clear previous render
-		svg.selectAll('*').remove();
 
 		const drivers = data.map((d) => d.driver);
 		const metrics: (keyof Omit<DriverMetric, 'driver'>)[] = [
@@ -54,43 +66,65 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.range([0, xScale0.bandwidth()])
 			.padding(0.05);
 
+		// Adjusted scaling for visibility - might need fine-tuning based on real data
+		const maxValue =
+			d3.max(data, (d) => Math.max(d.points, d.wins * 50, d.poles * 100)) ?? 0;
 		const yScale = d3
 			.scaleLinear()
-			.domain([
-				0,
-				d3.max(data, (d) => Math.max(d.points, d.wins * 50, d.poles * 100)) ??
-					0,
-			]) // Adjusted scaling for visibility
+			.domain([0, maxValue * 1.1]) // Add padding to top
 			.nice()
 			.range([height, 0]);
 
 		const colorScale = d3
 			.scaleOrdinal<string>()
 			.domain(metrics)
-			.range(d3.schemeCategory10);
+			.range(['#6366f1', '#ec4899', '#f59e0b']); // Indigo, Pink, Amber
 
 		// --- Axes ---
-		const xAxis = d3.axisBottom(xScale0);
+		const xAxis = d3.axisBottom(xScale0).tickSizeOuter(0);
 		svg
 			.append('g')
+			.attr('class', 'x-axis')
 			.attr('transform', `translate(0,${height})`)
 			.call(xAxis)
+			.call((g) => g.select('.domain').remove()) // Remove axis line
 			.selectAll('text')
-			.attr('transform', 'rotate(-45)')
-			.style('text-anchor', 'end');
+			.attr('transform', 'translate(-10,5) rotate(-45)')
+			.style('text-anchor', 'end')
+			.attr('fill', axisTextColor)
+			.attr('font-size', '10px');
 
-		const yAxis = d3.axisLeft(yScale);
-		svg.append('g').call(yAxis);
+		const yAxis = d3.axisLeft(yScale).ticks(5).tickSize(-width); // Add grid lines
+		svg
+			.append('g')
+			.attr('class', 'y-axis')
+			.call(yAxis)
+			.call((g) => g.select('.domain').remove()) // Remove axis line
+			.call((g) =>
+				g
+					.selectAll('.tick line') // Style grid lines
+					.attr('stroke', gridColor)
+					.attr('stroke-opacity', 0.7)
+					.attr('stroke-dasharray', '2,2'),
+			)
+			.call((g) =>
+				g
+					.selectAll('.tick text') // Style axis text
+					.attr('fill', axisTextColor)
+					.attr('x', -8)
+					.attr('font-size', '10px'),
+			);
 
 		// Add Y axis label
 		svg
 			.append('text')
 			.attr('transform', 'rotate(-90)')
-			.attr('y', 0 - margin.left)
+			.attr('y', 0 - margin.left + 15) // Adjusted position
 			.attr('x', 0 - height / 2)
 			.attr('dy', '1em')
 			.style('text-anchor', 'middle')
 			.style('font-size', '12px')
+			.attr('fill', axisTextColor)
 			.text('Metric Value (Scaled)');
 
 		// --- Bars ---
@@ -100,7 +134,7 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.enter()
 			.append('g')
 			.attr('class', 'driver-group')
-			.attr('transform', (d) => `translate(${xScale0(d.driver)},0)`);
+			.attr('transform', (d) => `translate(${xScale0(d.driver) ?? 0},0)`);
 
 		driverGroups
 			.selectAll('rect')
@@ -114,17 +148,21 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.attr('width', xScale1.bandwidth())
 			.attr('height', (d) => height - yScale(d.value))
 			.attr('fill', (d) => colorScale(d.key))
+			.attr('rx', 2) // Slightly rounded corners
 			.style('opacity', (d) =>
 				selectedDriver === null || selectedDriver === d.driver ? 1 : 0.3,
-			) // Dim if not selected
-			.on('mouseover', (event, d) => {
+			)
+			.style('cursor', 'pointer')
+			.on('mouseover', function (event, d) {
+				d3.select(this).style('filter', 'brightness(1.2)');
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
 				setTooltipContent(`${d.driver} - ${d.key}: ${d.value}`);
 			})
 			.on('mousemove', (event) => {
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
 			})
-			.on('mouseout', () => {
+			.on('mouseout', function (event, d) {
+				d3.select(this).style('filter', 'brightness(1)');
 				setTooltipPosition(null);
 				setTooltipContent(null);
 			})
@@ -137,27 +175,32 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.append('g')
 			.attr('font-family', 'sans-serif')
 			.attr('font-size', 10)
-			.attr('text-anchor', 'end')
-			.attr('transform', `translate(${width}, 0)`) // Position legend top-right
+			.attr('text-anchor', 'start')
+			.attr(
+				'transform',
+				`translate(${width + margin.right - 40}, -${margin.top - 10})`,
+			) // Position top right relative to chart area
 			.selectAll('g')
 			.data(metrics)
 			.enter()
 			.append('g')
-			.attr('transform', (d, i) => `translate(0,${i * 20})`);
+			.attr('transform', (d, i) => `translate(0, ${i * 20})`);
 
 		legend
 			.append('rect')
-			.attr('x', -19)
-			.attr('width', 19)
-			.attr('height', 19)
-			.attr('fill', colorScale);
-		// Add legend click interaction if needed in future
+			.attr('x', 0)
+			.attr('width', 12)
+			.attr('height', 12)
+			.attr('fill', colorScale)
+			.attr('rx', 2);
 
 		legend
 			.append('text')
-			.attr('x', -24)
-			.attr('y', 9.5)
+			.attr('x', 18)
+			.attr('y', 6)
 			.attr('dy', '0.32em')
+			.attr('fill', axisTextColor)
+			.style('text-transform', 'capitalize')
 			.text((d) => d);
 	}, [
 		data,
@@ -165,26 +208,23 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 		margin.bottom,
 		margin.left,
 		margin.top,
+		margin.right,
 		width,
 		selectedDriver,
 	]);
 
 	return (
-		<div>
-			<h3>Driver Season Metrics</h3>
+		<div className='relative'>
+			<h3 className='text-lg font-semibold mb-4 text-center text-gray-700 dark:text-gray-300'>
+				Driver Season Metrics
+			</h3>
 			<svg ref={ref}></svg>
 			{tooltipContent && tooltipPosition && (
 				<div
+					className='absolute z-10 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-sm dark:bg-gray-700 pointer-events-none'
 					style={{
-						position: 'absolute',
 						left: `${tooltipPosition.x + 10}px`,
 						top: `${tooltipPosition.y + 10}px`,
-						background: 'rgba(0, 0, 0, 0.7)',
-						color: 'white',
-						padding: '5px',
-						borderRadius: '3px',
-						fontSize: '12px',
-						pointerEvents: 'none', // Prevent tooltip from blocking mouse events
 					}}>
 					{tooltipContent}
 				</div>

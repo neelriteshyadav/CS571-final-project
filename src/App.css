@@ -1,0 +1,162 @@
+:root {
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+
+  color-scheme: light dark;
+  color: rgba(255, 255, 255, 0.87);
+  background-color: #242424;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  display: flex;
+  place-items: center;
+  min-width: 320px;
+  min-height: 100vh;
+}
+
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+  text-align: center;
+}
+
+h1 {
+  font-size: 2.5em;
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+}
+
+.App {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.chart-section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #444;
+  border-radius: 8px;
+  background-color: #2a2a2a; /* Slightly lighter background for sections */
+  width: 100%; /* Make sections take full width */
+  max-width: 900px; /* Limit max width for better readability */
+  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.chart-section h3 {
+  margin-top: 0;
+  color: #c7c7c7;
+  border-bottom: 1px solid #555;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.chart-section-horizontal {
+    display: flex;
+    justify-content: space-around; /* Distribute space between radial charts */
+    align-items: flex-start; /* Align tops of charts */
+    flex-wrap: wrap; /* Allow wrapping on smaller screens */
+}
+
+.chart-section-horizontal > div {
+    margin: 0.5rem; /* Add some space around each radial chart */
+}
+
+button {
+  border-radius: 8px;
+  border: 1px solid transparent;
+  padding: 0.6em 1.2em;
+  font-size: 1em;
+  font-weight: 500;
+  font-family: inherit;
+  background-color: #1a1a1a;
+  cursor: pointer;
+  transition: border-color 0.25s;
+  margin: 0 0.5rem 1rem 0.5rem; /* Add some margin around buttons */
+}
+button:hover {
+  border-color: #646cff;
+}
+button:focus,
+button:focus-visible {
+  outline: 4px auto -webkit-focus-ring-color;
+}
+button:disabled {
+    background-color: #333;
+    color: #777;
+    cursor: not-allowed;
+    border-color: #444;
+}
+
+/* Style SVG elements (optional, can be more specific) */
+svg {
+  display: block; /* Remove extra space below SVG */
+  margin: auto; /* Center SVG if its container is wider */
+}
+
+.axis path,
+.axis line {
+  fill: none;
+  stroke: #aaa;
+  shape-rendering: crispEdges;
+}
+
+.axis text {
+  fill: #ccc;
+  font-size: 11px;
+}
+
+.axis--x path {
+  display: none; /* Hide domain path for x-axis */
+}
+
+.line {
+  fill: none;
+  stroke-width: 1.5px;
+}
+
+/* Tooltip styles are inline in the components for dynamic positioning */
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color: #213547;
+    background-color: #ffffff;
+  }
+  a:hover {
+    color: #747bff;
+  }
+  button {
+    background-color: #f9f9f9;
+  }
+  .chart-section {
+    border-color: #ccc;
+    background-color: #fdfdfd;
+  }
+  .chart-section h3 {
+     color: #333;
+     border-bottom-color: #ddd;
+  }
+   button {
+     background-color: #eee;
+   }
+   button:disabled {
+      background-color: #ddd;
+      color: #999;
+      border-color: #ccc;
+   }
+  .axis path,
+  .axis line {
+    stroke: #555;
+  }
+  .axis text {
+    fill: #333;
+  }
+}

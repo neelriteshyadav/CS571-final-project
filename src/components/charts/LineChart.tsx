@@ -19,7 +19,8 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 		d3.zoomIdentity,
 	);
 
-	const margin = { top: 30, right: 120, bottom: 50, left: 60 }; // Adjusted margins for legend/title
+	// Increase left margin to prevent y-axis overlap
+	const margin = { top: 30, right: 120, bottom: 50, left: 90 };
 	const width = 800 - margin.left - margin.right;
 	const height = 400 - margin.top - margin.bottom;
 
@@ -49,7 +50,11 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 			);
 
 		// Clear previous elements before re-rendering based on metric/zoom
-		svg.selectAll('.chart-content, .axis, .legend, .zoom-layer').remove();
+		svg
+			.selectAll(
+				'.chart-content, .axis, .legend, .zoom-layer, .axis-label, .chart-title',
+			)
+			.remove();
 
 		// --- Data Preparation ---
 		const allRaces = Array.from(
@@ -65,14 +70,22 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 			.domain(d3.extent(allRaces) as [number, number])
 			.range([0, width]);
 
+		// Adjust y-scale domain based on metric
 		const yScale = d3
 			.scaleLinear()
-			.domain([0, (d3.max(allValues) ?? 0) * 1.1]) // Add padding to top
+			.domain(
+				currentMetric === 'points'
+					? [0, (d3.max(allValues) ?? 0) * 1.1] // Add padding to top
+					: [
+							d3.min(allValues) ? (d3.min(allValues) as number) * 0.95 : 0, // 5% padding below min
+							d3.max(allValues) ? (d3.max(allValues) as number) * 1.05 : 100,
+					  ],
+			) // 5% padding above max
 			.nice()
 			.range([height, 0]);
 
 		const colorScale = d3
-			.scaleOrdinal(d3.schemeCategory10) // Consider Tailwind colors? d3.schemeTableau10 is also good
+			.scaleOrdinal(d3.schemeCategory10)
 			.domain(data.map((d) => d.team));
 
 		// --- Apply Zoom --- Need to calculate zoomed scales for axes and lines
@@ -135,6 +148,24 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 					.attr('font-size', '10px'),
 			);
 
+		// --- Chart Title ---
+		svg
+			.append('text')
+			.attr('class', 'chart-title')
+			.attr(
+				'transform',
+				`translate(${margin.left + width / 2}, ${margin.top / 2})`,
+			)
+			.style('text-anchor', 'middle')
+			.style('font-size', '14px')
+			.style('font-weight', 'bold')
+			.attr('fill', axisTextColor)
+			.text(
+				currentMetric === 'points'
+					? 'Team Points per Race'
+					: 'Team Average Lap Times',
+			);
+
 		// Add Axis Labels
 		svg
 			.append('text')
@@ -143,24 +174,27 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 				'transform',
 				`translate(${margin.left + width / 2}, ${
 					height + margin.top + margin.bottom - 10
-				})`, // Adjusted y position
+				})`,
 			)
 			.style('text-anchor', 'middle')
 			.style('font-size', '12px')
 			.attr('fill', axisTextColor)
 			.text('Race Number');
 
+		// Add Y axis label
 		svg
 			.append('text')
 			.attr('class', 'axis-label')
 			.attr('transform', 'rotate(-90)')
-			.attr('y', 0 + margin.left - 40) // Adjusted y position
+			.attr('y', -margin.left + 20) // Adjusted position to prevent overlap
 			.attr('x', 0 - height / 2 - margin.top)
 			.attr('dy', '1em')
 			.style('text-anchor', 'middle')
 			.style('font-size', '12px')
 			.attr('fill', axisTextColor)
-			.text(currentMetric === 'points' ? 'Points' : 'Average Lap Time (s)');
+			.text(
+				currentMetric === 'points' ? 'Points' : 'Average Lap Time (seconds)',
+			);
 
 		// --- Lines (using zoomed scales, appended to chartGroup) ---
 		const lineGenerator = d3
@@ -179,6 +213,55 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 			.attr('fill', 'none')
 			.attr('stroke', (d) => colorScale(d.team))
 			.attr('stroke-width', 2); // Slightly thicker lines
+
+		// --- Annotations for important data points ---
+		// For each team, annotate their best performance
+		data.forEach((team) => {
+			let bestDataPoint: TeamMetricPoint | null = null;
+
+			if (currentMetric === 'points') {
+				// For points, find the max point value
+				bestDataPoint = team.data.reduce(
+					(best, current) =>
+						current.points > (best?.points || 0) ? current : best,
+					null as TeamMetricPoint | null,
+				);
+			} else {
+				// For lap time, find the min lap time (faster is better)
+				bestDataPoint = team.data.reduce(
+					(best, current) =>
+						best === null || current.avgLapTime < best.avgLapTime
+							? current
+							: best,
+					null as TeamMetricPoint | null,
+				);
+			}
+
+			if (bestDataPoint) {
+				// Add a circle at the best point
+				chartGroup
+					.append('circle')
+					.attr('cx', zoomedXScale(bestDataPoint.race))
+					.attr('cy', zoomedYScale(bestDataPoint[currentMetric]))
+					.attr('r', 4)
+					.attr('fill', colorScale(team.team))
+					.attr('stroke', '#ffffff')
+					.attr('stroke-width', 1);
+
+				// Optional: add text label for the value
+				chartGroup
+					.append('text')
+					.attr('x', zoomedXScale(bestDataPoint.race) + 5)
+					.attr('y', zoomedYScale(bestDataPoint[currentMetric]) - 5)
+					.attr('font-size', '9px')
+					.attr('fill', colorScale(team.team))
+					.text(
+						bestDataPoint[currentMetric].toFixed(
+							currentMetric === 'avgLapTime' ? 1 : 0,
+						),
+					);
+			}
+		});
 
 		// --- Legend ---
 		const legend = svg
@@ -243,6 +326,21 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 			.style('pointer-events', 'all')
 			.call(zoomBehavior)
 			.call(zoomBehavior.transform, currentZoomState); // Restore zoom state
+
+		// Add instruction text
+		svg
+			.append('text')
+			.attr('class', 'instruction-text')
+			.attr(
+				'transform',
+				`translate(${margin.left + width / 2}, ${height + margin.top + 25})`,
+			)
+			.style('text-anchor', 'middle')
+			.style('font-size', '11px')
+			.style('font-weight', 'bold')
+			.style('font-style', 'italic')
+			.attr('fill', axisTextColor)
+			.text('Drag to pan, scroll to zoom');
 	}, [data, width, height, margin, currentMetric, currentZoomState]);
 
 	// Helper function for button classes
@@ -279,10 +377,14 @@ const LineChart: React.FC<LineChartProps> = ({ data }) => {
 					Show Avg Lap Time
 				</button>
 			</div>
+			<div className='text-center text-sm text-gray-500 dark:text-gray-400 mb-2'>
+				{currentMetric === 'points'
+					? 'Track team points accumulation across races'
+					: 'Compare team average lap times (lower is better)'}
+			</div>
 			<svg ref={ref}>
 				{/* Content is now drawn directly into the main SVG */}
 			</svg>
-			{/* Add Tooltip display logic here if needed, similar to BarChart */}
 		</div>
 	);
 };

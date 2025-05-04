@@ -17,7 +17,7 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 	} | null>(null);
 	const [selectedDriver, setSelectedDriver] = useState<string | null>(null);
 
-	const margin = { top: 30, right: 50, bottom: 70, left: 60 }; // Adjusted for labels/title
+	const margin = { top: 40, right: 120, bottom: 80, left: 60 }; // Adjusted for labels/title
 	const width = 800 - margin.left - margin.right;
 	const height = 400 - margin.top - margin.bottom;
 
@@ -80,6 +80,18 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.domain(metrics)
 			.range(['#6366f1', '#ec4899', '#f59e0b']); // Indigo, Pink, Amber
 
+		// --- Chart Title ---
+		svg
+			.append('text')
+			.attr('class', 'chart-title')
+			.attr('x', width / 2)
+			.attr('y', -20)
+			.attr('text-anchor', 'middle')
+			.attr('font-size', '16px')
+			.attr('font-weight', 'bold')
+			.attr('fill', axisTextColor)
+			.text('Driver Performance Comparison');
+
 		// --- Axes ---
 		const xAxis = d3.axisBottom(xScale0).tickSizeOuter(0);
 		svg
@@ -115,6 +127,16 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 					.attr('font-size', '10px'),
 			);
 
+		// Add X axis label
+		svg
+			.append('text')
+			.attr('x', width / 2)
+			.attr('y', height + margin.bottom - 30)
+			.style('text-anchor', 'middle')
+			.style('font-size', '12px')
+			.attr('fill', axisTextColor)
+			.text('Driver');
+
 		// Add Y axis label
 		svg
 			.append('text')
@@ -127,6 +149,20 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.attr('fill', axisTextColor)
 			.text('Metric Value (Scaled)');
 
+		// Add scale note
+		svg
+			.append('text')
+			.attr('class', 'scale-note')
+			.attr('x', width / 2)
+			.attr('y', height + margin.bottom - 10)
+			.style('text-anchor', 'middle')
+			.style('font-size', '10px')
+			.style('font-style', 'italic')
+			.attr('fill', axisTextColor)
+			.text(
+				'Note: Wins and poles are scaled for comparison (Wins ×50, Poles ×100)',
+			);
+
 		// --- Bars ---
 		const driverGroups = svg
 			.selectAll('.driver-group')
@@ -136,7 +172,7 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.attr('class', 'driver-group')
 			.attr('transform', (d) => `translate(${xScale0(d.driver) ?? 0},0)`);
 
-		driverGroups
+		const bars = driverGroups
 			.selectAll('rect')
 			.data((d) =>
 				metrics.map((key) => ({ key, value: d[key], driver: d.driver })),
@@ -155,8 +191,19 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.style('cursor', 'pointer')
 			.on('mouseover', function (event, d) {
 				d3.select(this).style('filter', 'brightness(1.2)');
+
+				// Display appropriate scale factor in tooltip
+				let displayValue = d.value;
+				let displayText = `${d.driver} - ${d.key}: ${displayValue}`;
+
+				if (d.key === 'wins') {
+					displayText += ' (×50 in chart)';
+				} else if (d.key === 'poles') {
+					displayText += ' (×100 in chart)';
+				}
+
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
-				setTooltipContent(`${d.driver} - ${d.key}: ${d.value}`);
+				setTooltipContent(displayText);
 			})
 			.on('mousemove', (event) => {
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
@@ -170,22 +217,50 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 				setSelectedDriver((prev) => (prev === d.driver ? null : d.driver));
 			});
 
+		// --- Add values above bars ---
+		driverGroups
+			.selectAll('.bar-value')
+			.data((d) =>
+				metrics.map((key) => ({ key, value: d[key], driver: d.driver })),
+			)
+			.enter()
+			.append('text')
+			.attr('class', 'bar-value')
+			.attr('x', (d) => (xScale1(d.key) ?? 0) + xScale1.bandwidth() / 2)
+			.attr('y', (d) => yScale(d.value) - 5)
+			.attr('text-anchor', 'middle')
+			.attr('font-size', '9px')
+			.attr('font-weight', 'bold')
+			.attr('fill', (d) => {
+				// Use a darker shade of the bar color for better contrast
+				const color = d3.color(colorScale(d.key));
+				return color ? d3.rgb(color).darker(0.8).toString() : '#000';
+			})
+			.text((d) => d.value)
+			.style('opacity', (d) =>
+				selectedDriver === null || selectedDriver === d.driver ? 1 : 0.3,
+			);
+
 		// --- Legend ---
+		const metricDescriptions = {
+			points: 'Total championship points',
+			wins: 'Race victories (×50 in chart)',
+			poles: 'Pole positions (×100 in chart)',
+		};
+
 		const legend = svg
 			.append('g')
 			.attr('font-family', 'sans-serif')
 			.attr('font-size', 10)
 			.attr('text-anchor', 'start')
-			.attr(
-				'transform',
-				`translate(${width + margin.right - 40}, -${margin.top - 10})`,
-			) // Position top right relative to chart area
+			.attr('transform', `translate(${width + 20}, 0)`)
 			.selectAll('g')
 			.data(metrics)
 			.enter()
 			.append('g')
-			.attr('transform', (d, i) => `translate(0, ${i * 20})`);
+			.attr('transform', (d, i) => `translate(0, ${i * 40})`);
 
+		// Colored rectangle
 		legend
 			.append('rect')
 			.attr('x', 0)
@@ -194,14 +269,26 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.attr('fill', colorScale)
 			.attr('rx', 2);
 
+		// Metric name
 		legend
 			.append('text')
 			.attr('x', 18)
 			.attr('y', 6)
 			.attr('dy', '0.32em')
 			.attr('fill', axisTextColor)
+			.attr('font-weight', 'bold')
 			.style('text-transform', 'capitalize')
 			.text((d) => d);
+
+		// Metric description
+		legend
+			.append('text')
+			.attr('x', 18)
+			.attr('y', 18)
+			.attr('fill', axisTextColor)
+			.attr('font-size', '8px')
+			.style('font-style', 'italic')
+			.text((d) => metricDescriptions[d]);
 	}, [
 		data,
 		height,
@@ -218,6 +305,9 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			<h3 className='text-lg font-semibold mb-4 text-center text-gray-700 dark:text-gray-300'>
 				Driver Season Metrics
 			</h3>
+			<div className='text-center text-sm text-gray-500 dark:text-gray-400 mb-2'>
+				Click on a bar to highlight specific driver. Hover for detailed values.
+			</div>
 			<svg ref={ref}></svg>
 			{tooltipContent && tooltipPosition && (
 				<div

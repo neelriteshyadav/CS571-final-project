@@ -51,6 +51,12 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 
 		const data_ready = pie(data);
 
+		// Calculate total championships for percentage calculations
+		const totalChampionships = data.reduce(
+			(sum, d) => sum + d.championships,
+			0,
+		);
+
 		// --- Arc Generators ---
 		const arcGenerator = d3
 			.arc<d3.PieArcDatum<ChampionshipData>>()
@@ -74,7 +80,8 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 			.append('path')
 			.attr('d', arcGenerator)
 			.attr('fill', (d) => colorScale(d.data.id))
-			.attr('stroke', 'none')
+			.attr('stroke', 'white')
+			.attr('stroke-width', 1)
 			.style('cursor', 'pointer')
 			.style('opacity', (d) =>
 				selectedSegment === null || selectedSegment === d.data.id ? 1 : 0.5,
@@ -89,9 +96,13 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 						hoverArcGenerator(d as d3.PieArcDatum<ChampionshipData>) as string,
 					)
 					.style('opacity', 1);
+
+				const percentage = (d.data.championships / totalChampionships) * 100;
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
 				setTooltipContent(
-					`${d.data.id}: ${d.data.championships} Championships`,
+					`${d.data.id}: ${
+						d.data.championships
+					} Championships (${percentage.toFixed(1)}%)`,
 				);
 			})
 			.on('mousemove', (event) => {
@@ -118,17 +129,102 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 				setSelectedSegment((prev) => (prev === currentId ? null : currentId));
 			});
 
-		// --- Center Text (Optional - display total or title) ---
-		/*
-		const isDarkMode = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-		svg.append('text')
-			.attr('text-anchor', 'middle')
+		// --- Add labels for values ---
+		// Create a different arc generator for positioning labels
+		const labelArc = d3
+			.arc<d3.PieArcDatum<ChampionshipData>>()
+			.innerRadius(radius * 0.8)
+			.outerRadius(radius * 0.8);
+
+		// Add value labels to each segment for those with enough space
+		const valueLabels = svg
+			.selectAll('.value-label')
+			.data(data_ready.filter((d) => d.endAngle - d.startAngle > 0.3)) // Only add labels where there's enough space
+			.enter()
+			.append('text')
+			.attr('class', 'value-label')
+			.attr('transform', (d) => `translate(${labelArc.centroid(d)})`)
 			.attr('dy', '0.35em')
-			.style('font-size', '18px')
+			.attr('text-anchor', 'middle')
+			.attr('font-size', '12px')
+			.attr('font-weight', 'bold')
+			.attr('fill', 'white')
+			.text((d) => d.data.championships);
+
+		// --- Center Text showing total ---
+		const isDarkMode =
+			window.matchMedia &&
+			window.matchMedia('(prefers-color-scheme: dark)').matches;
+		const centerTextColor = isDarkMode ? '#e2e8f0' : '#374151'; // slate-200 : gray-700
+
+		// Total value in center
+		svg
+			.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dy', '-0.2em')
+			.style('font-size', '22px')
 			.style('font-weight', 'bold')
-			.attr('fill', isDarkMode ? '#e2e8f0' : '#374151') // slate-200 : gray-700
-			.text(title.split(' ')[0]); // Display first word? Or total?
-		*/
+			.attr('fill', centerTextColor)
+			.text(totalChampionships);
+
+		// "Total" text below the number
+		svg
+			.append('text')
+			.attr('text-anchor', 'middle')
+			.attr('dy', '1.2em')
+			.style('font-size', '14px')
+			.attr('fill', centerTextColor)
+			.text('Total');
+
+		// --- Add Legend ---
+		const legendRectSize = 12;
+		const legendSpacing = 6;
+		const legendHeight = legendRectSize + legendSpacing;
+
+		// Calculate the best position for legend (right side of chart)
+		const legendX = radius + 30;
+		const legendY = -radius + 20;
+
+		const legend = svg
+			.selectAll('.legend')
+			.data(data)
+			.enter()
+			.append('g')
+			.attr('class', 'legend')
+			.attr('transform', (d, i) => {
+				return `translate(${legendX}, ${legendY + i * (legendHeight + 8)})`;
+			});
+
+		// Legend colored rectangles
+		legend
+			.append('rect')
+			.attr('width', legendRectSize)
+			.attr('height', legendRectSize)
+			.attr('rx', 2)
+			.style('fill', (d) => colorScale(d.id))
+			.style('stroke', (d) => colorScale(d.id));
+
+		// Legend text with values and percentages
+		legend
+			.append('text')
+			.attr('x', legendRectSize + legendSpacing + 2)
+			.attr('y', legendRectSize - 3)
+			.attr('font-size', '11px')
+			.text((d) => {
+				const percentage = (d.championships / totalChampionships) * 100;
+				return `${d.id}: ${d.championships} (${percentage.toFixed(1)}%)`;
+			})
+			.attr('fill', isDarkMode ? '#e2e8f0' : '#374151');
+
+		// Add legend title
+		svg
+			.append('text')
+			.attr('x', legendX)
+			.attr('y', legendY - 20)
+			.attr('font-size', '12px')
+			.attr('font-weight', 'bold')
+			.attr('fill', centerTextColor)
+			.text('Championship Distribution');
 	}, [
 		data,
 		width,
@@ -145,6 +241,9 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 			<h3 className='text-lg font-semibold mb-2 text-center text-gray-700 dark:text-gray-300'>
 				{title}
 			</h3>
+			<div className='text-center text-sm text-gray-500 dark:text-gray-400 mb-2'>
+				Click on a segment to highlight. Hover for details.
+			</div>
 			<svg ref={ref}></svg>
 			{tooltipContent && tooltipPosition && (
 				<div

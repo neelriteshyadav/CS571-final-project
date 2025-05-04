@@ -1,0 +1,13 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Define a simple class without using @apply */
+.test-box {
+  padding: 1rem;
+  margin: 1rem;
+  background-color: #ef4444; /* bg-red-500 equivalent */
+  color: white;
+  font-weight: bold;
+  border-radius: 0.5rem;
+} 

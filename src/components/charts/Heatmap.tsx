@@ -409,8 +409,10 @@ const Heatmap: React.FC<HeatmapProps> = ({ data, metrics }) => {
 				<div
 					className='absolute z-10 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-sm dark:bg-gray-700 pointer-events-none'
 					style={{
-						left: `${tooltipPosition.x + 10}px`,
-						top: `${tooltipPosition.y + 10}px`,
+						position: 'absolute',
+						left: `${tooltipPosition.x}px`,
+						top: `${tooltipPosition.y + 25}px`,
+						transform: 'translateX(-50%)',
 					}}>
 					{tooltipContent}
 				</div>

@@ -66,12 +66,30 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.range([0, xScale0.bandwidth()])
 			.padding(0.05);
 
-		// Adjusted scaling for visibility - might need fine-tuning based on real data
-		const maxValue =
-			d3.max(data, (d) => Math.max(d.points, d.wins * 50, d.poles * 100)) ?? 0;
+		// Create scaling factors for different metrics to make them visually comparable
+		// Reduced scaling factors to make bars appear taller
+		const scalingFactors = {
+			points: 1, // No scaling for points
+			wins: 25, // Reduced from 50
+			poles: 50, // Reduced from 100
+		};
+
+		// First, find the maximum scaled value across all metrics
+		const maxScaledValue =
+			d3.max(data, (d) =>
+				Math.max(
+					d.points,
+					d.wins * scalingFactors.wins,
+					d.poles * scalingFactors.poles,
+				),
+			) ?? 0;
+
+		// Set a reasonable top padding to make bars more visible
+		const topPadding = 1.2; // Reduced from typical 1.5 or 1.1
+
 		const yScale = d3
 			.scaleLinear()
-			.domain([0, maxValue * 1.1]) // Add padding to top
+			.domain([0, maxScaledValue * topPadding])
 			.nice()
 			.range([height, 0]);
 
@@ -160,7 +178,7 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.style('font-style', 'italic')
 			.attr('fill', axisTextColor)
 			.text(
-				'Note: Wins and poles are scaled for comparison (Wins ×50, Poles ×100)',
+				`Note: Wins and poles are scaled for comparison (Wins ×${scalingFactors.wins}, Poles ×${scalingFactors.poles})`,
 			);
 
 		// --- Bars ---
@@ -172,6 +190,13 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.attr('class', 'driver-group')
 			.attr('transform', (d) => `translate(${xScale0(d.driver) ?? 0},0)`);
 
+		// Create a function to get the scaled value for a metric
+		const getScaledValue = (d: { key: string; value: number }) => {
+			if (d.key === 'wins') return d.value * scalingFactors.wins;
+			if (d.key === 'poles') return d.value * scalingFactors.poles;
+			return d.value; // points don't need scaling
+		};
+
 		const bars = driverGroups
 			.selectAll('rect')
 			.data((d) =>
@@ -180,9 +205,9 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.enter()
 			.append('rect')
 			.attr('x', (d) => xScale1(d.key) ?? 0)
-			.attr('y', (d) => yScale(d.value))
+			.attr('y', (d) => yScale(getScaledValue(d)))
 			.attr('width', xScale1.bandwidth())
-			.attr('height', (d) => height - yScale(d.value))
+			.attr('height', (d) => height - yScale(getScaledValue(d)))
 			.attr('fill', (d) => colorScale(d.key))
 			.attr('rx', 2) // Slightly rounded corners
 			.style('opacity', (d) =>
@@ -197,9 +222,9 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 				let displayText = `${d.driver} - ${d.key}: ${displayValue}`;
 
 				if (d.key === 'wins') {
-					displayText += ' (×50 in chart)';
+					displayText += ` (×${scalingFactors.wins} in chart)`;
 				} else if (d.key === 'poles') {
-					displayText += ' (×100 in chart)';
+					displayText += ` (×${scalingFactors.poles} in chart)`;
 				}
 
 				setTooltipPosition({ x: event.pageX, y: event.pageY });
@@ -227,7 +252,7 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 			.append('text')
 			.attr('class', 'bar-value')
 			.attr('x', (d) => (xScale1(d.key) ?? 0) + xScale1.bandwidth() / 2)
-			.attr('y', (d) => yScale(d.value) - 5)
+			.attr('y', (d) => yScale(getScaledValue(d)) - 5)
 			.attr('text-anchor', 'middle')
 			.attr('font-size', '9px')
 			.attr('font-weight', 'bold')
@@ -244,8 +269,8 @@ const BarChart: React.FC<BarChartProps> = ({ data }) => {
 		// --- Legend ---
 		const metricDescriptions = {
 			points: 'Total championship points',
-			wins: 'Race victories (×50 in chart)',
-			poles: 'Pole positions (×100 in chart)',
+			wins: `Race victories (×${scalingFactors.wins} in chart)`,
+			poles: `Pole positions (×${scalingFactors.poles} in chart)`,
 		};
 
 		const legend = svg

@@ -11,17 +11,20 @@ interface RadialGraphProps {
 
 const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 	const ref = useRef<SVGSVGElement>(null);
+	const chartContainerRef = useRef<HTMLDivElement>(null);
 	const [tooltipContent, setTooltipContent] = useState<string | null>(null);
 	const [tooltipPosition, setTooltipPosition] = useState<{
 		x: number;
 		y: number;
 	} | null>(null);
 	const [selectedSegment, setSelectedSegment] = useState<string | null>(null);
+	const [isMouseOverChart, setIsMouseOverChart] = useState<boolean>(false);
 
-	const width = 450;
+	// Increase width significantly to make sure we have room for labels
+	const width = 700; // Much wider to accommodate labels
 	const height = 450;
 	const margin = 40;
-	const radius = Math.min(width, height) / 2 - margin;
+	const radius = Math.min(width / 2, height) / 2 - margin;
 	const innerRadius = radius * 0.5; // For donut chart
 
 	useEffect(() => {
@@ -35,7 +38,7 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 			.attr('height', height)
 			.attr('viewBox', `0 0 ${width} ${height}`)
 			.append('g')
-			.attr('transform', `translate(${width / 2}, ${height / 2})`);
+			.attr('transform', `translate(${width / 3}, ${height / 2})`); // Move chart to the left third
 
 		// --- Color Scale (using a vibrant scheme) ---
 		const colorScale = d3
@@ -106,7 +109,9 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 				);
 			})
 			.on('mousemove', (event) => {
-				setTooltipPosition({ x: event.pageX, y: event.pageY });
+				if (isMouseOverChart) {
+					setTooltipPosition({ x: event.pageX, y: event.pageY });
+				}
 			})
 			.on('mouseout', function (event, d) {
 				d3.select(this)
@@ -177,54 +182,53 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 			.text('Total');
 
 		// --- Add Legend ---
-		const legendRectSize = 12;
-		const legendSpacing = 6;
-		const legendHeight = legendRectSize + legendSpacing;
+		// Place the legend on the right side of the chart
+		const legendX = radius + 50; // Position to the right of the chart
+		const legendY = -radius + 10; // Start near the top
 
-		// Calculate the best position for legend (right side of chart)
-		const legendX = radius + 30;
-		const legendY = -radius + 20;
-
+		// Create a container for the legend that will have plenty of space
 		const legend = svg
-			.selectAll('.legend')
-			.data(data)
-			.enter()
 			.append('g')
-			.attr('class', 'legend')
-			.attr('transform', (d, i) => {
-				return `translate(${legendX}, ${legendY + i * (legendHeight + 8)})`;
-			});
+			.attr('class', 'legend-container')
+			.attr('transform', `translate(${legendX}, ${legendY})`);
 
-		// Legend colored rectangles
-		legend
-			.append('rect')
-			.attr('width', legendRectSize)
-			.attr('height', legendRectSize)
-			.attr('rx', 2)
-			.style('fill', (d) => colorScale(d.id))
-			.style('stroke', (d) => colorScale(d.id));
-
-		// Legend text with values and percentages
+		// Legend title at the top
 		legend
 			.append('text')
-			.attr('x', legendRectSize + legendSpacing + 2)
-			.attr('y', legendRectSize - 3)
-			.attr('font-size', '11px')
-			.text((d) => {
-				const percentage = (d.championships / totalChampionships) * 100;
-				return `${d.id}: ${d.championships} (${percentage.toFixed(1)}%)`;
-			})
-			.attr('fill', isDarkMode ? '#e2e8f0' : '#374151');
-
-		// Add legend title
-		svg
-			.append('text')
-			.attr('x', legendX)
-			.attr('y', legendY - 20)
-			.attr('font-size', '12px')
+			.attr('x', 0)
+			.attr('y', -20)
+			.attr('font-size', '14px')
 			.attr('font-weight', 'bold')
 			.attr('fill', centerTextColor)
 			.text('Championship Distribution');
+
+		// Add legend entries with enough vertical spacing
+		const entrySpacing = 28; // More space between entries
+
+		data.forEach((d, i) => {
+			const entryG = legend
+				.append('g')
+				.attr('transform', `translate(0, ${i * entrySpacing})`);
+
+			// Colored square
+			entryG
+				.append('rect')
+				.attr('width', 14)
+				.attr('height', 14)
+				.attr('rx', 2)
+				.style('fill', colorScale(d.id))
+				.style('stroke', colorScale(d.id));
+
+			// Label text (with percentage)
+			const percentage = (d.championships / totalChampionships) * 100;
+			entryG
+				.append('text')
+				.attr('x', 20) // Offset from colored square
+				.attr('y', 11) // Vertical alignment with square
+				.attr('font-size', '12px')
+				.attr('fill', isDarkMode ? '#e2e8f0' : '#374151')
+				.text(`${d.id}: ${d.championships} (${percentage.toFixed(1)}%)`);
+		});
 	}, [
 		data,
 		width,
@@ -234,7 +238,29 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 		innerRadius,
 		selectedSegment,
 		title,
+		isMouseOverChart,
 	]);
+
+	// Set up mouse enter/leave event handlers for the chart container
+	useEffect(() => {
+		const container = chartContainerRef.current;
+		if (!container) return;
+
+		const handleMouseEnter = () => setIsMouseOverChart(true);
+		const handleMouseLeave = () => {
+			setIsMouseOverChart(false);
+			setTooltipPosition(null);
+			setTooltipContent(null);
+		};
+
+		container.addEventListener('mouseenter', handleMouseEnter);
+		container.addEventListener('mouseleave', handleMouseLeave);
+
+		return () => {
+			container.removeEventListener('mouseenter', handleMouseEnter);
+			container.removeEventListener('mouseleave', handleMouseLeave);
+		};
+	}, []);
 
 	return (
 		<div className='relative flex flex-col items-center'>
@@ -244,17 +270,23 @@ const RadialGraph: React.FC<RadialGraphProps> = ({ data, title }) => {
 			<div className='text-center text-sm text-gray-500 dark:text-gray-400 mb-2'>
 				Click on a segment to highlight. Hover for details.
 			</div>
-			<svg ref={ref}></svg>
-			{tooltipContent && tooltipPosition && (
-				<div
-					className='absolute z-10 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-sm dark:bg-gray-700 pointer-events-none'
-					style={{
-						left: `${tooltipPosition.x + 10}px`,
-						top: `${tooltipPosition.y + 10}px`,
-					}}>
-					{tooltipContent}
-				</div>
-			)}
+			<div
+				ref={chartContainerRef}
+				className='relative w-full'>
+				<svg
+					ref={ref}
+					className='w-full'></svg>
+				{tooltipContent && tooltipPosition && isMouseOverChart && (
+					<div
+						className='absolute z-10 px-3 py-1.5 text-xs font-medium text-white bg-gray-900 rounded-md shadow-sm dark:bg-gray-700 pointer-events-none'
+						style={{
+							left: `${tooltipPosition.x + 10}px`,
+							top: `${tooltipPosition.y + 10}px`,
+						}}>
+						{tooltipContent}
+					</div>
+				)}
+			</div>
 		</div>
 	);
 };

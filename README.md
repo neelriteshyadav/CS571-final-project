@@ -11,6 +11,7 @@ Currently, two official plugins are available:
 https://docs.google.com/document/d/1MRnFxBqkYIaqdLDk99EOPZhRNSA-Wqj8o2tds5Sgo08/edit?usp=sharing
 
 ## Project Website:
+https://cs-571-final-project.vercel.app/
 
 ## ScreenCast Link:
 https://drive.google.com/file/d/1C5Zk7gcxpzjEtuaWumcax0GIyx3gmPyA/view?usp=sharing

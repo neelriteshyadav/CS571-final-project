@@ -68,7 +68,7 @@ function App() {
 									window.open('https://docs.google.com/document/d/1MRnFxBqkYIaqdLDk99EOPZhRNSA-Wqj8o2tds5Sgo08/edit?usp=sharing', '_blank');
 									} 
 									else if(section === 'Demo Video') {
-										window.open('https://drive.google.com/file/d/1QFJa9EZBApTgnawKjgnDC7MgcHnzsqW8/view?usp=sharing', '_blank');
+										window.open('https://drive.google.com/file/d/1C5Zk7gcxpzjEtuaWumcax0GIyx3gmPyA/view?usp=sharing', '_blank');
 									} 
 									else {
 									setActiveSection(section);

@@ -10,6 +10,16 @@ Currently, two official plugins are available:
 ## Process Book Link:
 https://docs.google.com/document/d/1MRnFxBqkYIaqdLDk99EOPZhRNSA-Wqj8o2tds5Sgo08/edit?usp=sharing
 
+## Project Website:
+
+## ScreenCast Link:
+https://drive.google.com/file/d/1QFJa9EZBApTgnawKjgnDC7MgcHnzsqW8/view?usp=sharing
+
+## To get Started for Development:
+1. npm install
+2. npm run dev
+3. On the browser open http://localhost:5173/  
+
 ## Expanding the ESLint configuration
 
 If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:

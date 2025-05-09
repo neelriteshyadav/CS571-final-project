@@ -47,24 +47,36 @@ function App() {
 						</div>
 						<div className='hidden md:flex items-center space-x-4'>
 							<div className='flex items-baseline space-x-4'>
-								{[
-									'home',
-									'drivers',
-									'teams',
-									'comparison',
-									'championships',
-								].map((section) => (
-									<button
-										key={section}
-										className={`px-3 py-2 rounded-md text-sm font-medium capitalize ${
-											activeSection === section
-												? 'bg-indigo-600 text-white'
-												: 'text-indigo-200 hover:bg-indigo-700'
-										}`}
-										onClick={() => setActiveSection(section)}>
-										{section}
-									</button>
-								))}
+							{[
+								'home',
+								'drivers',
+								'teams',
+								'comparison',
+								'championships',
+								'Process Book',
+								'Demo Video'
+							].map((section) => (
+								<button
+								key={section}
+								className={`px-3 py-2 rounded-md text-sm font-medium capitalize ${
+									activeSection === section
+									? 'bg-indigo-600 text-white'
+									: 'text-indigo-200 hover:bg-indigo-700'
+								}`}
+								onClick={() => {
+									if (section === 'Process Book') {
+									window.open('https://docs.google.com/document/d/1MRnFxBqkYIaqdLDk99EOPZhRNSA-Wqj8o2tds5Sgo08/edit?usp=sharing', '_blank');
+									} 
+									else if(section === 'Demo Video') {
+										window.open('https://drive.google.com/file/d/1QFJa9EZBApTgnawKjgnDC7MgcHnzsqW8/view?usp=sharing', '_blank');
+									} 
+									else {
+									setActiveSection(section);
+									}
+								}}>
+								{section}
+								</button>
+							))}
 							</div>
 							<DarkModeToggle />
 						</div>
@@ -154,34 +166,46 @@ function App() {
 						{/* Stats Cards Section */}
 						<section>
 							<h2 className='text-2xl md:text-3xl font-bold mb-6 text-indigo-600 dark:text-indigo-400'>
-								Current Season Highlights
+								Current Season Highlights (2025–2026)
 							</h2>
 							<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4'>
 								<StatsCard
-									title='Race Wins'
-									value='15'
+									title='Race Completed'
+									value='6'
 									icon={<TrophyIcon className='w-8 h-8' />}
-									change='3 more than last season'
 									isPositive={true}
 								/>
 								<StatsCard
-									title='Pole Positions'
+									title='Races Left'
 									value='18'
 									icon={<SpeedometerIcon className='w-8 h-8' />}
-									change='2 more than last season'
 									isPositive={true}
 								/>
 								<StatsCard
-									title='Podiums'
-									value='42'
+									title='Lates Winning Driver'
+									value='Oscar Piastri'
 									icon={<PodiumIcon className='w-8 h-8' />}
-									change='Same as last season'
+									change='Same as last race'
 								/>
 								<StatsCard
-									title='Championships'
-									value='8'
+									title='Lates Winning Team'
+									value='McLaren'
 									icon={<ChampionshipIcon className='w-8 h-8' />}
-									change='1 more than last season'
+									change='1 more than last race'
+									isPositive={true}
+								/>
+								<StatsCard
+									title='Championship Leader Driver'
+									value='Oscar Piastri'
+									icon={<ChampionshipIcon className='w-8 h-8' />}
+									change='1'
+									isPositive={true}
+								/>
+								<StatsCard
+									title='Championship Leader Team'
+									value='MacLaren'
+									icon={<ChampionshipIcon className='w-8 h-8' />}
+									change='1'
 									isPositive={true}
 								/>
 							</div>
